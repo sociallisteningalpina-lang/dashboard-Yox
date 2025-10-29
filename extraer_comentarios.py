@@ -18,52 +18,18 @@ SOLO_PRIMER_POST = False
 
 # LISTA DE URLs A PROCESAR
 URLS_A_PROCESAR = [
-    # --- Facebook ---
-    "https://www.facebook.com/100064867445065/posts/1223329536505950/",
-    "https://www.facebook.com/100064867445065/posts/1223332643172306/",
-    "https://www.facebook.com/100064867445065/posts/pfbid023cuQdk1HX7QMkTEMH7nTAeSvgAd8DKuX3aBLVniQWa5D2XQNsvUL8frEjEJDjsYLl/",
-    "https://www.facebook.com/100064867445065/posts/pfbid028jpWJ4NJfe5y7WfRBwwK4xr6nFfU6okp4pC1g14mb76cixJumbrqmnynNd7aWNsl/",
-    "https://www.facebook.com/100064867445065/posts/1248105494028354/",
-    "https://www.facebook.com/100064867445065/posts/1254151113423792/",
-    "https://www.facebook.com/100064867445065/posts/1254234573415446/",
-    "https://www.facebook.com/100064867445065/posts/1237361408436096/",
-    "https://www.facebook.com/100064867445065/posts/1248085704030333/",
-    "https://www.facebook.com/100064867445065/posts/pfbid02LHCK8BYHa4kigoXsZRRgdyazT3JfHVMSukm239Ny6C2CGQQNA2f5wUbRdyeGmcqul/",
-    "https://www.facebook.com/100064867445065/posts/pfbid02Mrw1FBssZaQNsodNb1Ha4VsFR85cckqDUnKmHRx4JAdosWBsbGdKAFHyHSky3idrl/",
-    "https://www.facebook.com/100064867445065/posts/pfbid02piNqRS9q3GH1cjZyopus8PpQLEyo55FA5LLh5REcXS24Ppfxi6s1psMacTPSAbMJl/",
-    "https://www.facebook.com/100064867445065/posts/pfbid02V1paX87gSN8YmaLq2BHk1cimq73waVtXukX41MmXTQypan5UeP42XqraetcB599Vl/",
-    "https://www.facebook.com/100064867445065/posts/pfbid02Zg7gxj5t9qnsmeXSP6RwuuJf9Xd6fJjMZhovsnRZHtHCRFWpvcu1B1vvqnr4P56Pl/",
-    "https://www.facebook.com/100064867445065/posts/pfbid05aV2Djq4TJroDCC8LFUUnXJu57Dz9KvR1NsWyBVkdBQGvtzQoWVkm77NGAF92yh5l/",
-    "https://www.facebook.com/100064867445065/posts/pfbid06bTUwBPMmp4saBLNq9PwmVUzvvF6fMXrfsbxGqM6kceP197PpPT5RHg1eMH71WaZl/",
-    "https://www.facebook.com/100064867445065/posts/pfbid0AcjJc5Vxmjkq8RxSx3PzCeJKRkQJaWJKUCghbXe8MfwZ7inbZWLqtDTghHjvffVPl/",
-    "https://www.facebook.com/100064867445065/posts/pfbid0BmnVeWuanpeKBr33AeTqdsPgpaSNSynJkqYpuVuhokr8m8b4wJvzj9sqg5DxXoRBl/",
-    "https://www.facebook.com/100064867445065/posts/pfbid0FYKCe48cTUk7PTovG7mRCXJNoJxHjuWzHkubjJynpp56coBN94Z4MsydinRhsdY2l/",
-    "https://www.facebook.com/100064867445065/posts/pfbid0kxitPyWG59s1ndtcyX5oxFxEvQnaESseNwRDJKYrmH5U4SEhMM5hVXnTxNsuhUBLl/",
-    "https://www.facebook.com/100064867445065/posts/pfbid0oa63XdvnxKav3FonzmCLiFVyRRSwnnVtZmvu9GhfKGEaU3zkYNV4P2QLYh3QAGm4l/",
-    
-    # --- Instagram ---
-    "https://www.instagram.com/p/DPz5b-aAAcc/",
-    "https://www.instagram.com/p/DQEzqx4AK5F/",
-    "https://www.instagram.com/p/DP8BSfIALBL/",
-    "https://www.instagram.com/p/DQFCGTKgLDB/",
-    "https://www.instagram.com/p/DPXNk03gBq2/",
-    "https://www.instagram.com/p/DPz2htAgJ3D/",
-    "https://www.instagram.com/p/DOvpQZYALLC/",
-    "https://www.instagram.com/p/DOvoGefAFeJ/",
-    "https://www.instagram.com/p/DPz2ftJAJ3z/",
-    "https://www.instagram.com/p/DPz385GAFlS/",
-    "https://www.instagram.com/p/DPz399TgGbj/",
-    "https://www.instagram.com/p/DPz3fH1gP-8/",
-    "https://www.instagram.com/p/DPz3gAwgJRM/",
-    "https://www.instagram.com/p/DPz3N0SgF68/",
-    "https://www.instagram.com/p/DPz4BB8gG2G/",
-    "https://www.instagram.com/p/DPz4pRMAHaN/",
-    "https://www.instagram.com/p/DPz5uXcgK4L/",
-    
-    # --- TikTok ---
-    "https://www.tiktok.com/@alpinacol/video/7563734723755838721",
-    "https://www.tiktok.com/@alpinacol/video/7561443917086952722",
-    "https://www.tiktok.com/@alpinacol/video/7554409105977330965",
+    "https://www.facebook.com/100064867445065/posts/1260808236091413/",
+    "https://www.facebook.com/100064867445065/posts/1260808222758081/",
+    "https://www.facebook.com/100064867445065/posts/1260808139424756/",
+    "https://www.facebook.com/100064867445065/posts/1261357616036475/",
+    "https://www.facebook.com/100064867445065/posts/1261357606036476/",
+    "https://www.facebook.com/100064867445065/posts/1260822012756702/",
+    "https://www.instagram.com/p/DQXX191jDIm/",
+    "https://www.instagram.com/p/DQXXzQWDDZV/",
+    "https://www.instagram.com/p/DQXX1g-jBg9/",
+    "https://www.instagram.com/p/DQXaV3BjM4E/",
+    "https://www.instagram.com/p/DQMhtk1DGri/",
+    "https://vt.tiktok.com/ZSy8ENMRW/"
 ]
 
 # INFORMACIÓN DE CAMPAÑA
@@ -285,6 +251,7 @@ def run_extraction():
 
 if __name__ == "__main__":
     run_extraction()
+
 
 
 
