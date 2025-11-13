@@ -8,6 +8,8 @@ import unicodedata
 import os
 import random
 from pathlib import Path
+from datetime import datetime
+import hashlib
 
 # Configurar logging más limpio
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
@@ -16,6 +18,7 @@ logger = logging.getLogger(__name__)
 # --- PARÁMETROS DE CONFIGURACIÓN ---
 APIFY_TOKEN = os.environ.get("APIFY_TOKEN")
 SOLO_PRIMER_POST = False
+MAX_REINTENTOS = 3  # Número máximo de reintentos por URL
 
 # LISTA DE URLs A PROCESAR
 URLS_A_PROCESAR = [
@@ -61,8 +64,6 @@ URLS_A_PROCESAR = [
     "https://www.instagram.com/p/DQ9jdxAjP_x/",
     "https://www.instagram.com/p/DQ9jtyTjD2N/",
     "https://www.instagram.com/p/DQ9jvTNDGNb/",
-
-
 ]
 
 # INFORMACIÓN DE CAMPAÑA
@@ -78,6 +79,7 @@ CAMPAIGN_INFO = {
 class SocialMediaScraper:
     def __init__(self, apify_token):
         self.client = ApifyClient(apify_token)
+        self.failed_urls = []  # Track URLs that failed after all retries
 
     def detect_platform(self, url):
         if pd.isna(url) or not url: return None
@@ -114,6 +116,28 @@ class SocialMediaScraper:
                 return None
             time.sleep(10)
 
+    def scrape_with_retry(self, scrape_function, url, max_comments, campaign_info, post_number):
+        """Ejecuta una función de scraping con reintentos"""
+        for attempt in range(MAX_REINTENTOS):
+            try:
+                result = scrape_function(url, max_comments, campaign_info, post_number)
+                if result:  # Si obtuvimos resultados, retornar
+                    return result
+                if attempt < MAX_REINTENTOS - 1:
+                    wait_time = (attempt + 1) * 30  # Espera incremental
+                    logger.warning(f"Attempt {attempt + 1} failed. Waiting {wait_time} seconds before retry...")
+                    time.sleep(wait_time)
+            except Exception as e:
+                logger.error(f"Attempt {attempt + 1} failed with error: {e}")
+                if attempt < MAX_REINTENTOS - 1:
+                    wait_time = (attempt + 1) * 30
+                    time.sleep(wait_time)
+        
+        # Si llegamos aquí, todos los intentos fallaron
+        self.failed_urls.append(url)
+        logger.error(f"All attempts failed for URL: {url}")
+        return []
+
     def scrape_facebook_comments(self, url, max_comments=500, campaign_info=None, post_number=1):
         try:
             logger.info(f"Processing Facebook Post {post_number}: {url}")
@@ -127,8 +151,8 @@ class SocialMediaScraper:
             logger.info(f"Extraction complete: {len(items)} items found.")
             return self._process_facebook_results(items, url, post_number, campaign_info)
         except Exception as e:
-            logger.error(f"Fatal error in scrape_facebook_comments: {e}")
-            return []
+            logger.error(f"Error in scrape_facebook_comments: {e}")
+            raise  # Re-raise para que el retry lo maneje
 
     def scrape_instagram_comments(self, url, max_comments=500, campaign_info=None, post_number=1):
         try:
@@ -143,8 +167,8 @@ class SocialMediaScraper:
             logger.info(f"Extraction complete: {len(items)} items found.")
             return self._process_instagram_results(items, url, post_number, campaign_info)
         except Exception as e:
-            logger.error(f"Fatal error in scrape_instagram_comments: {e}")
-            return []
+            logger.error(f"Error in scrape_instagram_comments: {e}")
+            raise
 
     def scrape_tiktok_comments(self, url, max_comments=500, campaign_info=None, post_number=1):
         try:
@@ -159,8 +183,8 @@ class SocialMediaScraper:
             logger.info(f"Extraction complete: {len(items)} comments found.")
             return self._process_tiktok_results(items, url, post_number, campaign_info)
         except Exception as e:
-            logger.error(f"Fatal error in scrape_tiktok_comments: {e}")
-            return []
+            logger.error(f"Error in scrape_tiktok_comments: {e}")
+            raise
 
     def _process_facebook_results(self, items, url, post_number, campaign_info):
         processed = []
@@ -173,7 +197,7 @@ class SocialMediaScraper:
                     break
             comment_data = {
                 **campaign_info,
-                'post_url': normalize_url(url),
+                'post_url': url,  # Mantener URL original para preservar unicidad
                 'post_url_original': url,
                 'post_number': post_number,
                 'platform': 'Facebook',
@@ -185,7 +209,7 @@ class SocialMediaScraper:
                 'replies_count': comment.get('repliesCount', 0),
                 'is_reply': False,
                 'parent_comment_id': None,
-                'created_time_raw': str(comment)
+                'created_time_raw': str(comment)[:500]  # Limitar longitud
             }
             processed.append(comment_data)
         logger.info(f"Processed {len(processed)} Facebook comments.")
@@ -205,7 +229,7 @@ class SocialMediaScraper:
                 author = comment.get('ownerUsername', '')
                 comment_data = {
                     **campaign_info,
-                    'post_url': normalize_url(url),
+                    'post_url': url,  # Mantener URL original
                     'post_url_original': url,
                     'post_number': post_number,
                     'platform': 'Instagram',
@@ -217,7 +241,7 @@ class SocialMediaScraper:
                     'replies_count': 0,
                     'is_reply': False,
                     'parent_comment_id': None,
-                    'created_time_raw': str(comment)
+                    'created_time_raw': str(comment)[:500]
                 }
                 processed.append(comment_data)
         logger.info(f"Processed {len(processed)} Instagram comments.")
@@ -229,7 +253,7 @@ class SocialMediaScraper:
             author_id = comment.get('user', {}).get('uniqueId', '')
             comment_data = {
                 **campaign_info,
-                'post_url': normalize_url(url),
+                'post_url': url,  # Mantener URL original
                 'post_url_original': url,
                 'post_number': post_number,
                 'platform': 'TikTok',
@@ -241,72 +265,20 @@ class SocialMediaScraper:
                 'replies_count': comment.get('replyCommentTotal', 0),
                 'is_reply': 'replyToId' in comment,
                 'parent_comment_id': comment.get('replyToId'),
-                'created_time_raw': str(comment)
+                'created_time_raw': str(comment)[:500]
             }
             processed.append(comment_data)
         logger.info(f"Processed {len(processed)} TikTok comments.")
         return processed
 
 
-def normalize_url(url):
-    """
-    Normaliza una URL para comparación consistente.
-    EXCEPCIONES: 
-    - Preserva feed_demo_ad para Facebook Ad Preview
-    - Preserva tokens de fb.me/adspreview URLs
-    """
-    if pd.isna(url) or url == '':
-        return ''
-    
-    original_url = str(url).strip()
-    url_lower = original_url.lower()
-    
-    # CASO ESPECIAL 1: Facebook Ad Preview con feed_demo_ad
-    # Estos son anuncios diferentes y deben tratarse como URLs únicas
-    if 'facebook.com' in url_lower and 'feed_demo_ad=' in url_lower:
-        import re
-        match = re.search(r'feed_demo_ad=(\d+)', url_lower)
-        if match:
-            ad_id = match.group(1)
-            return f"https://www.facebook.com/ad_preview/{ad_id}"
-    
-    # CASO ESPECIAL 2: fb.me/adspreview URLs
-    # Formato: https://fb.me/adspreview/facebook/xxxxx o managedaccount/xxxxx
-    # El token al final es único por anuncio
-    if 'fb.me/adspreview/' in url_lower:
-        import re
-        # Extraer el tipo (facebook/managedaccount) y el token
-        match = re.search(r'fb\.me/adspreview/(facebook|managedaccount)/([a-z0-9]+)', url_lower, re.IGNORECASE)
-        if match:
-            ad_type = match.group(1)
-            token = match.group(2)
-            return f"https://fb.me/adspreview/{ad_type}/{token}"
-    
-    # Normalización estándar
-    url = url_lower
-    
-    # Eliminar parámetros de query (excepto para casos especiales arriba)
-    if '?' in url:
-        url = url.split('?')[0]
-    
-    # Eliminar barra final
-    if url.endswith('/'):
-        url = url[:-1]
-    
-    # Eliminar fragmentos (#)
-    if '#' in url:
-        url = url.split('#')[0]
-    
-    return url
-
-
-def create_post_registry_entry(url, platform, campaign_info):
+def create_post_registry_entry(url, platform, campaign_info, post_number):
     """Crea una entrada de registro para una pauta procesada sin comentarios"""
     return {
         **campaign_info,
-        'post_url': normalize_url(url),
+        'post_url': url,  # Mantener URL original
         'post_url_original': url,
-        'post_number': None,
+        'post_number': post_number,  # Ahora siempre incluye post_number
         'platform': platform,
         'author_name': None,
         'author_url': None,
@@ -316,40 +288,125 @@ def create_post_registry_entry(url, platform, campaign_info):
         'replies_count': 0,
         'is_reply': False,
         'parent_comment_id': None,
-        'created_time_raw': None
+        'created_time_raw': None,
+        'extraction_status': 'NO_COMMENTS'  # Nuevo campo para tracking
     }
 
 
-def assign_consistent_post_numbers(df):
-    """Asigna números de pauta consistentes basados en el orden de primera aparición"""
-    if df.empty:
-        return df
+def create_failed_registry_entry(url, platform, campaign_info, post_number):
+    """Crea una entrada de registro para una URL que falló la extracción"""
+    return {
+        **campaign_info,
+        'post_url': url,
+        'post_url_original': url,
+        'post_number': post_number,
+        'platform': platform,
+        'author_name': None,
+        'author_url': None,
+        'comment_text': None,
+        'created_time': None,
+        'likes_count': 0,
+        'replies_count': 0,
+        'is_reply': False,
+        'parent_comment_id': None,
+        'created_time_raw': None,
+        'extraction_status': 'FAILED'  # Indicar que la extracción falló
+    }
+
+
+def create_unique_comment_hash(row):
+    """Crea un hash único para cada comentario basado en múltiples campos"""
+    if pd.isna(row.get('comment_text')) or str(row.get('comment_text', '')).strip() == '':
+        # Es una entrada de registro
+        return f"REGISTRY_{row.get('post_url', '')}_{row.get('extraction_status', 'UNKNOWN')}"
     
-    df_with_numbers = df[df['post_number'].notna()].copy()
-    existing_mapping = {}
+    # Crear un string único basado en múltiples campos
+    unique_string = f"{row.get('platform', '')}|{row.get('post_url', '')}|{row.get('author_name', '')}|{row.get('comment_text', '')}|{row.get('created_time', '')}"
     
-    if not df_with_numbers.empty:
-        for url in df_with_numbers['post_url'].unique():
-            if pd.notna(url):
-                url_numbers = df_with_numbers[df_with_numbers['post_url'] == url]['post_number']
-                most_common = url_numbers.mode()
-                if len(most_common) > 0:
-                    existing_mapping[url] = int(most_common.iloc[0])
+    # Generar hash MD5 para evitar IDs muy largos
+    return hashlib.md5(unique_string.encode('utf-8')).hexdigest()
+
+
+def merge_comments(df_existing, df_new):
+    """Combina comentarios existentes con nuevos, evitando duplicados reales"""
+    if df_existing.empty:
+        return df_new
+    if df_new.empty:
+        return df_existing
     
-    all_urls = df['post_url'].dropna().unique()
-    new_urls = [url for url in all_urls if url not in existing_mapping]
+    logger.info(f"Merging: {len(df_existing)} existing + {len(df_new)} new rows")
     
-    if existing_mapping:
-        next_number = max(existing_mapping.values()) + 1
-    else:
-        next_number = 1
+    # Crear hashes únicos para identificación
+    df_existing['_comment_hash'] = df_existing.apply(create_unique_comment_hash, axis=1)
+    df_new['_comment_hash'] = df_new.apply(create_unique_comment_hash, axis=1)
     
-    for url in new_urls:
-        existing_mapping[url] = next_number
-        next_number += 1
+    # Encontrar comentarios verdaderamente nuevos
+    existing_hashes = set(df_existing['_comment_hash'])
+    df_truly_new = df_new[~df_new['_comment_hash'].isin(existing_hashes)].copy()
     
-    df['post_number'] = df['post_url'].map(existing_mapping)
-    return df
+    logger.info(f"Found {len(df_truly_new)} truly new entries")
+    
+    # Para las URLs que tienen nuevos comentarios, actualizar el extraction_status
+    urls_with_new_comments = set(df_truly_new[df_truly_new['comment_text'].notna()]['post_url'].unique())
+    
+    if urls_with_new_comments:
+        # Marcar las entradas de registro antiguas para estas URLs
+        mask_to_remove = (
+            df_existing['comment_text'].isna() & 
+            df_existing['post_url'].isin(urls_with_new_comments) &
+            (df_existing.get('extraction_status', '') == 'NO_COMMENTS')
+        )
+        df_existing = df_existing[~mask_to_remove].copy()
+        logger.info(f"Removed {mask_to_remove.sum()} obsolete registry entries")
+    
+    # Combinar dataframes
+    df_combined = pd.concat([df_existing, df_truly_new], ignore_index=True)
+    df_combined = df_combined.drop(columns=['_comment_hash'])
+    
+    return df_combined
+
+
+def save_to_excel(df, filename, scraper=None):
+    """Guarda el DataFrame en Excel con múltiples hojas de resumen"""
+    try:
+        with pd.ExcelWriter(filename, engine='openpyxl') as writer:
+            # Hoja principal de comentarios
+            df.to_excel(writer, sheet_name='Comentarios', index=False)
+            
+            # Resumen por posts
+            if not df.empty and 'post_number' in df.columns:
+                # Resumen general
+                summary = df.groupby(['post_number', 'platform', 'post_url']).agg(
+                    Total_Comentarios=('comment_text', lambda x: x.notna().sum()),
+                    Total_Likes=('likes_count', 'sum'),
+                    Primera_Extraccion=('created_time_processed', lambda x: x.min() if x.notna().any() else None),
+                    Ultima_Extraccion=('created_time_processed', lambda x: x.max() if x.notna().any() else None)
+                ).reset_index()
+                summary = summary.sort_values('post_number')
+                summary.to_excel(writer, sheet_name='Resumen_Posts', index=False)
+                
+                # Estadísticas por plataforma
+                platform_stats = df[df['comment_text'].notna()].groupby('platform').agg(
+                    Total_Posts=('post_url', 'nunique'),
+                    Total_Comentarios=('comment_text', 'count'),
+                    Promedio_Likes=('likes_count', 'mean'),
+                    Total_Likes=('likes_count', 'sum')
+                ).round(2).reset_index()
+                platform_stats.to_excel(writer, sheet_name='Stats_Plataforma', index=False)
+                
+                # URLs con problemas
+                if scraper and scraper.failed_urls:
+                    failed_df = pd.DataFrame({
+                        'URL': scraper.failed_urls,
+                        'Status': 'FAILED_ALL_ATTEMPTS'
+                    })
+                    failed_df.to_excel(writer, sheet_name='URLs_Fallidas', index=False)
+        
+        logger.info(f"Excel file saved successfully: {filename}")
+        return True
+    except Exception as e:
+        logger.error(f"Error saving Excel file: {e}")
+        return False
 
 
 def load_existing_comments(filename):
@@ -371,118 +428,12 @@ def load_existing_comments(filename):
         
         # Crear post_url_original si no existe
         if 'post_url_original' not in df_existing.columns:
-            logger.info("Creating post_url_original from post_url")
             df_existing['post_url_original'] = df_existing['post_url'].copy()
-        
-        # Normalizar URLs
-        if 'post_url' in df_existing.columns:
-            df_existing['post_url'] = df_existing['post_url'].apply(normalize_url)
         
         return df_existing
     except Exception as e:
         logger.error(f"Error loading existing file: {e}")
         return pd.DataFrame()
-
-
-def is_registry_entry(row):
-    """Determina si una fila es una entrada de registro (pauta sin comentarios)"""
-    if 'comment_text' not in row.index:
-        return True
-    comment = row['comment_text']
-    if pd.isna(comment):
-        return True
-    if isinstance(comment, str) and comment.strip() == '':
-        return True
-    return False
-
-
-def create_comment_id(row):
-    """Crea un identificador único para cada comentario"""
-    if is_registry_entry(row):
-        post_url = row.get('post_url', '') if 'post_url' in row.index else ''
-        normalized_url = normalize_url(post_url)
-        if not normalized_url:
-            platform = str(row.get('platform', 'unknown')) if 'platform' in row.index else 'unknown'
-            return f"REGISTRY|NO_URL|{platform}"
-        return f"REGISTRY|{normalized_url}"
-    
-    # Platform
-    platform = str(row['platform']) if 'platform' in row.index and pd.notna(row['platform']) else ''
-    platform = platform.strip().lower()
-    
-    # Author - CORREGIDO: manejar NaN apropiadamente
-    author = ''
-    if 'author_name' in row.index and pd.notna(row['author_name']):
-        author = str(row['author_name']).strip().lower()
-        # Si después de convertir es 'nan', tratarlo como vacío
-        if author == 'nan':
-            author = ''
-    
-    # Post URL - NUEVO: agregar URL al ID para mayor especificidad
-    post_url = ''
-    if 'post_url' in row.index and pd.notna(row['post_url']):
-        post_url = str(row['post_url']).strip().lower()
-    
-    # Text
-    text = ''
-    if 'comment_text' in row.index and pd.notna(row['comment_text']):
-        text = str(row['comment_text']).strip().lower()
-        text = unicodedata.normalize('NFC', text)
-    
-    # Date - usar la fecha para diferenciar comentarios idénticos
-    date_str = ''
-    if 'created_time_processed' in row.index and pd.notna(row['created_time_processed']):
-        date_str = str(row['created_time_processed'])
-    elif 'created_time' in row.index and pd.notna(row['created_time']):
-        date_str = str(row['created_time'])
-    
-    # MEJORADO: Incluir más información para evitar falsos duplicados
-    # Especialmente importante para comentarios cortos o emojis
-    unique_id = f"{platform}|{post_url}|{author}|{text}|{date_str}"
-    return unique_id
-
-
-def merge_comments(df_existing, df_new):
-    """Combina comentarios existentes con nuevos, evitando duplicados"""
-    if df_existing.empty:
-        return df_new
-    if df_new.empty:
-        return df_existing
-    
-    logger.info(f"Merging: {len(df_existing)} existing + {len(df_new)} new rows")
-    
-    df_existing['_comment_id'] = df_existing.apply(create_comment_id, axis=1)
-    df_new['_comment_id'] = df_new.apply(create_comment_id, axis=1)
-    
-    existing_ids = set(df_existing['_comment_id'])
-    new_ids = set(df_new['_comment_id'])
-    unique_new_ids = new_ids - existing_ids
-    
-    df_truly_new = df_new[df_new['_comment_id'].isin(unique_new_ids)].copy()
-    logger.info(f"Adding {len(df_truly_new)} new unique entries")
-    
-    df_combined = pd.concat([df_existing, df_truly_new], ignore_index=True)
-    df_combined = df_combined.drop(columns=['_comment_id'])
-    
-    return df_combined
-
-
-def save_to_excel(df, filename):
-    """Guarda el DataFrame en Excel"""
-    try:
-        with pd.ExcelWriter(filename, engine='openpyxl') as writer:
-            df.to_excel(writer, sheet_name='Comentarios', index=False)
-            if not df.empty and 'post_number' in df.columns:
-                summary = df.groupby(['post_number', 'platform', 'post_url']).agg(
-                    Total_Comentarios=('comment_text', 'count'),
-                    Total_Likes=('likes_count', 'sum')
-                ).reset_index()
-                summary.to_excel(writer, sheet_name='Resumen_Posts', index=False)
-        logger.info(f"Excel file saved successfully: {filename}")
-        return True
-    except Exception as e:
-        logger.error(f"Error saving Excel file: {e}")
-        return False
 
 
 def process_datetime_columns(df):
@@ -506,6 +457,7 @@ def run_extraction():
     """Función principal que ejecuta todo el proceso de extracción"""
     logger.info("=" * 60)
     logger.info("--- STARTING COMMENT EXTRACTION PROCESS ---")
+    logger.info(f"--- Start Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} ---")
     logger.info("=" * 60)
     
     if not APIFY_TOKEN:
@@ -524,90 +476,125 @@ def run_extraction():
     
     scraper = SocialMediaScraper(APIFY_TOKEN)
     all_comments = []
-    post_counter = 0
-
+    
+    # Mapeo consistente de URLs a números de post
+    url_to_post_number = {}
+    
+    # Si hay datos existentes, preservar la numeración existente
+    if not df_existing.empty and 'post_number' in df_existing.columns:
+        for url in df_existing['post_url'].unique():
+            if pd.notna(url):
+                existing_numbers = df_existing[df_existing['post_url'] == url]['post_number'].dropna()
+                if not existing_numbers.empty:
+                    url_to_post_number[url] = int(existing_numbers.mode().iloc[0])
+    
+    # Asignar números a URLs nuevas
+    next_number = max(url_to_post_number.values()) + 1 if url_to_post_number else 1
     for url in valid_urls:
-        post_counter += 1
+        if url not in url_to_post_number:
+            url_to_post_number[url] = next_number
+            next_number += 1
+    
+    # Procesar cada URL
+    for idx, url in enumerate(valid_urls, 1):
+        post_number = url_to_post_number[url]
         platform = scraper.detect_platform(url)
+        
+        if not platform:
+            logger.warning(f"Could not detect platform for URL: {url}")
+            continue
+        
+        logger.info(f"\n--- Processing URL {idx}/{len(valid_urls)} (Post #{post_number}) ---")
+        
         comments = []
         
+        # Usar reintentos automáticos
         if platform == 'facebook':
-            comments = scraper.scrape_facebook_comments(url, campaign_info=CAMPAIGN_INFO, post_number=post_counter)
+            comments = scraper.scrape_with_retry(
+                scraper.scrape_facebook_comments, 
+                url, 500, CAMPAIGN_INFO, post_number
+            )
         elif platform == 'instagram':
-            comments = scraper.scrape_instagram_comments(url, campaign_info=CAMPAIGN_INFO, post_number=post_counter)
+            comments = scraper.scrape_with_retry(
+                scraper.scrape_instagram_comments, 
+                url, 500, CAMPAIGN_INFO, post_number
+            )
         elif platform == 'tiktok':
-            comments = scraper.scrape_tiktok_comments(url, campaign_info=CAMPAIGN_INFO, post_number=post_counter)
+            comments = scraper.scrape_with_retry(
+                scraper.scrape_tiktok_comments, 
+                url, 500, CAMPAIGN_INFO, post_number
+            )
         
-        if not comments:
-            registry_entry = create_post_registry_entry(url, platform, CAMPAIGN_INFO)
-            registry_entry['post_number'] = post_counter
+        # Verificar si la URL falló completamente
+        if url in scraper.failed_urls:
+            # Crear entrada indicando que falló
+            failed_entry = create_failed_registry_entry(url, platform, CAMPAIGN_INFO, post_number)
+            all_comments.append(failed_entry)
+        elif not comments:
+            # No hubo comentarios pero la extracción fue exitosa
+            registry_entry = create_post_registry_entry(url, platform, CAMPAIGN_INFO, post_number)
             all_comments.append(registry_entry)
         else:
+            # Agregar todos los comentarios
             all_comments.extend(comments)
         
-        if not SOLO_PRIMER_POST and post_counter < len(valid_urls):
-            pausa = random.uniform(60, 120)
-            logger.info(f"Pausing for {pausa:.2f} seconds...")
+        # Pausa entre URLs (excepto la última)
+        if not SOLO_PRIMER_POST and idx < len(valid_urls):
+            pausa = random.uniform(30, 60)  # Reducida para ser más eficiente
+            logger.info(f"Pausing for {pausa:.2f} seconds before next URL...")
             time.sleep(pausa)
 
-    if not all_comments:
+    # Procesar y guardar resultados
+    if all_comments:
+        df_new_comments = pd.DataFrame(all_comments)
+        df_new_comments = process_datetime_columns(df_new_comments)
+        
+        # Combinar con existentes
+        df_combined = merge_comments(df_existing, df_new_comments)
+        
+        # Ordenar por fecha (más recientes primero)
+        if 'created_time_processed' in df_combined.columns:
+            df_combined = df_combined.sort_values(
+                ['post_number', 'created_time_processed'], 
+                ascending=[True, False],
+                na_position='last'
+            )
+        
+        # Organizar columnas
+        final_columns = [
+            'post_number', 'platform', 'campaign_name', 'post_url', 'post_url_original',
+            'author_name', 'comment_text', 'created_time_processed', 
+            'fecha_comentario', 'hora_comentario', 'likes_count', 
+            'replies_count', 'is_reply', 'author_url', 'extraction_status', 'created_time_raw'
+        ]
+        existing_cols = [col for col in final_columns if col in df_combined.columns]
+        df_combined = df_combined[existing_cols]
+        
+        # Guardar
+        save_to_excel(df_combined, filename, scraper)
+        
+        # Estadísticas finales
+        total_comments = df_combined['comment_text'].notna().sum()
+        total_posts = df_combined['post_number'].nunique()
+        failed_count = len(scraper.failed_urls)
+        
+        logger.info("=" * 60)
+        logger.info("--- EXTRACTION PROCESS FINISHED ---")
+        logger.info(f"--- End Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} ---")
+        logger.info(f"Total unique posts tracked: {total_posts}")
+        logger.info(f"Total comments extracted: {total_comments}")
+        if failed_count > 0:
+            logger.warning(f"Failed URLs: {failed_count}")
+            for failed_url in scraper.failed_urls:
+                logger.warning(f"  - {failed_url}")
+        logger.info(f"File saved: {filename}")
+        logger.info("=" * 60)
+    else:
+        logger.warning("No new data to process")
         if not df_existing.empty:
             save_to_excel(df_existing, filename)
-        return
-
-    df_new_comments = pd.DataFrame(all_comments)
-    df_new_comments = process_datetime_columns(df_new_comments)
-    
-    # Normalizar datos
-    if 'comment_text' in df_new_comments.columns:
-        df_new_comments['comment_text'] = df_new_comments['comment_text'].replace('', pd.NA)
-    if 'post_url' in df_new_comments.columns:
-        df_new_comments['post_url'] = df_new_comments['post_url'].apply(normalize_url)
-    
-    df_combined = merge_comments(df_existing, df_new_comments)
-    
-    # Limpiar registry entries obsoletas
-    is_registry_mask = df_combined.apply(is_registry_entry, axis=1)
-    urls_with_comments = set(df_combined[~is_registry_mask]['post_url'].dropna().unique())
-    
-    if urls_with_comments:
-        df_combined = df_combined[~(is_registry_mask & df_combined['post_url'].isin(urls_with_comments))].copy()
-    
-    df_combined = assign_consistent_post_numbers(df_combined)
-    
-    # Ordenar
-    df_with_comments = df_combined[df_combined['comment_text'].notna()].copy()
-    df_without_comments = df_combined[df_combined['comment_text'].isna()].copy()
-    
-    if not df_with_comments.empty and 'created_time_processed' in df_with_comments.columns:
-        df_with_comments = df_with_comments.sort_values('created_time_processed', ascending=False)
-    
-    df_combined = pd.concat([df_with_comments, df_without_comments], ignore_index=True)
-    
-    # Organizar columnas
-    final_columns = [
-        'post_number', 'platform', 'campaign_name', 'post_url', 'post_url_original',
-        'author_name', 'comment_text', 'created_time_processed', 
-        'fecha_comentario', 'hora_comentario', 'likes_count', 
-        'replies_count', 'is_reply', 'author_url', 'created_time_raw'
-    ]
-    existing_cols = [col for col in final_columns if col in df_combined.columns]
-    df_combined = df_combined[existing_cols]
-
-    save_to_excel(df_combined, filename)
-    
-    total_comments = df_combined['comment_text'].notna().sum()
-    total_posts = df_combined['post_url'].nunique()
-    
-    logger.info("=" * 60)
-    logger.info("--- EXTRACTION PROCESS FINISHED ---")
-    logger.info(f"Total unique posts tracked: {total_posts}")
-    logger.info(f"Total comments in file: {total_comments}")
-    logger.info(f"File saved: {filename}")
-    logger.info("=" * 60)
 
 
 if __name__ == "__main__":
     run_extraction()
-
 
