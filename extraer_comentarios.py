@@ -31,7 +31,6 @@ URLS_A_PROCESAR = [
     "https://vt.tiktok.com/ZSy8ENMRW/",
 
     # --- Facebook ---
-    "https://www.facebook.com/",
     "https://www.facebook.com/100064867445065/posts/1260808236091413/",
     "https://www.facebook.com/100064867445065/posts/1260808222758081/",
     "https://www.facebook.com/100064867445065/posts/1260808139424756/",
@@ -610,4 +609,5 @@ def run_extraction():
 
 if __name__ == "__main__":
     run_extraction()
+
 
