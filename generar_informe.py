@@ -5,7 +5,7 @@ import re
 import json
 
 
-def classify_yox_comment(comment):
+def classify_topic(comment):
     """
     Clasifica comentarios relacionados con Yox (producto de Alpina).
     """
@@ -499,4 +499,5 @@ def run_report_generation():
 
 if __name__ == "__main__":
     run_report_generation()
+
 
