@@ -21,6 +21,7 @@ SOLO_PRIMER_POST = False
 MAX_REINTENTOS = 3  # Número máximo de reintentos por URL
 
 # LISTA DE URLs A PROCESAR
+# LISTA DE URLs A PROCESAR
 URLS_A_PROCESAR = [
     # --- TikTok ---
     "https://vt.tiktok.com/ZSynjCxPs/",
@@ -34,6 +35,7 @@ URLS_A_PROCESAR = [
     "https://vt.tiktok.com/ZSy8ENMRW/",
 
     # --- Facebook ---
+    "https://www.facebook.com/",
     "https://www.facebook.com/100064867445065/posts/1260808236091413/",
     "https://www.facebook.com/100064867445065/posts/1260808222758081/",
     "https://www.facebook.com/100064867445065/posts/1260808139424756/",
@@ -51,6 +53,7 @@ URLS_A_PROCESAR = [
     "https://www.facebook.com/100064867445065/posts/pfbid0iWSJqTLCzeTBgz7LSHbiDGqYbxC7cbhgfHGDVEt1r5CB8AwgjuV9xxtEwvQaZEGnl",
     "https://www.facebook.com/reel/848611304195556/",
     "https://www.facebook.com/reel/1135439792045406/",
+    "https://www.facebook.com/1135439792045406/",
 
     # --- Instagram ---
     "https://www.instagram.com/p/DQHeaGojC-y/",
@@ -597,4 +600,5 @@ def run_extraction():
 
 if __name__ == "__main__":
     run_extraction()
+
 
