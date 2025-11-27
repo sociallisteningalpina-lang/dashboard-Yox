@@ -4,75 +4,94 @@ import os
 import re
 import json
 
-
 def classify_topic(comment):
     """
-    Clasifica comentarios relacionados con Yox (producto de Alpina).
+    Clasificación optimizada para comentarios de Yox,
+    ajustada a muestras reales del usuario.
     """
-    comment_lower = str(comment).lower()
-    
-    # Meme "Más defensas que..." (referencias deportivas/comparaciones)
-    if re.search(r'tiene.{0,10}más.{0,10}defensas.{0,20}yox|más.{0,10}defensas.{0,20}(un|el).{0,10}yox|yox.{0,20}(que|más).{0,20}defensa|defensas.{0,10}yox.{0,10}que', comment_lower):
+    import re
+    comment_lower = str(comment).lower().strip()
+
+    # --- NUEVAS CATEGORÍAS PERSONALIZADAS ---
+
+    # Insultos / Agresiones
+    if re.search(r'caco|cagón|hp|malparid|idiot|estúp|viejo.*cacorro', comment_lower):
+        return 'Insultos / Agresiones Personales'
+
+    # Frases coloquiales / Refranes / Humor
+    if re.search(r'que no sirve.*estorbe|jeje|jaja|titi dijo|amiga mía|dijo una amiga', comment_lower):
+        return 'Frases Coloquiales / Humor'
+
+    # Opiniones sobre el producto (positivas o negativas)
+    if re.search(r'edulcorante|no es tan bueno|mejor probiótico|probiótico', comment_lower):
+        return 'Opiniones sobre el Producto'
+
+    # Neutral / Comparaciones sin contexto
+    if re.fullmatch(r'igual que los anteriores', comment_lower):
+        return 'Comparación / Comentario Neutro'
+
+    # Reflexiones morales / Refranes
+    if re.search(r'verdes y otros las maduras|así es la vida|estoy de acuerdo', comment_lower):
+        return 'Reflexión / Opinión Social'
+
+    # Relatos incoherentes o confusos
+    if len(comment_lower.split()) > 20 and re.search(r'rrasio|cab[a|e] con la vida|tant[ai] i portasia', comment_lower):
+        return 'Comentario Confuso / Relato Incoherente'
+
+    # Interacciones simples (emojis, risas, monosílabos)
+    if len(comment_lower.split()) < 4 or re.search(r'^(jaja|jeje|xd|🤣|😂|😅|😁)+$', comment_lower):
+        return 'Interacción Simple'
+
+    # --- TUS CATEGORÍAS ORIGINALES (por si aplica) ---
+
+    # Meme "Más defensas que..."
+    if re.search(r'tiene.{0,10}más.{0,10}defensas.{0,20}yox|más.{0,10}defensas.{0,20}(un|el)', comment_lower):
         return 'Meme Deportivo - Comparación Defensas'
-    
-    # Publicidad/Contenido Patrocinado Oficial
-    if re.search(r'#publicidad|#creadoconalpina|#yoxeldetodoslosdias|#yoxaunshotdeestarbien|patrocinado|vitamina c y zinc|sistema de defensas|alimentación balanceada y ejercicio|consume junto a', comment_lower):
+
+    # Publicidad o patrocinado
+    if re.search(r'#publicidad|#creadoconalpina', comment_lower):
         return 'Publicidad/Contenido Patrocinado'
-    
-    # Solicitud de Producto Más Grande
-    if re.search(r'más grande|versión más grande|litro|tarritos|dos tragos|se acabe|saquen.*grande', comment_lower):
+
+    # Solicitud de producto más grande
+    if re.search(r'más grande|versión más grande|litro|saquen.*grande', comment_lower):
         return 'Solicitud Tamaño Mayor'
-    
-    # Comentarios Positivos sobre el Producto
-    if re.search(r'me encanta|amo.*yox|devoró|no se trata solo|aliado|mi yox|único vicio|patrimonio nacional|te amo yox|no sé quién inventó', comment_lower):
+
+    # Comentarios positivos
+    if re.search(r'me encanta|amo.*yox|mi yox', comment_lower):
         return 'Comentario Positivo/Amor por el Producto'
-    
-    # Referencias a Influencers/Campañas Específicas
-    if re.search(r'jairo garcía|profecontiktok|webinar|westcol|milica|belinda|dosis.*yox', comment_lower):
-        return 'Menciones de Influencers/Campañas'
-    
-    # Comentarios sobre Salud/Beneficios
-    if re.search(r'sistema inmune|defensas naturales|probióticos|flora intestinal|reforzar.*defensas|vitamina c|zinc|no me enfermo|cuidarse', comment_lower):
+
+    # Salud y beneficios
+    if re.search(r'sistema inmune|probiótico|flora intestinal', comment_lower):
         return 'Beneficios para la Salud'
-    
-    # Disponibilidad en USA/Internacional
-    if re.search(r'usa|bacart|colombianos en usa|latinos en usa|envíos.*usa|\+1.*929', comment_lower):
+
+    # Disponibilidad USA
+    if re.search(r'usa|envíos.*usa', comment_lower):
         return 'Disponibilidad Internacional (USA)'
-    
-    # Referencias al Clima de Bogotá
-    if re.search(r'clima.*bogotá|lluvias.*bogotá|bipolar.*mundo|clima no me va|cambios de clima', comment_lower):
-        return 'Relación con Clima/Lluvia'
-    
-    # Rutinas/Hábitos Diarios
-    if re.search(r'todos los días|rutina|cada día|diario|mi aliado|adulto|cansada.*hacer', comment_lower):
+
+    # Rutina diaria
+    if re.search(r'todos los días|rutina', comment_lower):
         return 'Hábitos y Rutina Diaria'
-    
-    # Producto Agrícola (Yox para agricultura - NO es el yogurt)
-    if re.search(r'yodo agrícola|cultivo|limones|patógenos|meganaturales|nutrición.*árbol|hongos.*bacterias|defensas.*cultivo', comment_lower):
-        return 'Producto Agrícola (No Yogurt)'
-    
-    # Ofertas/Promociones
-    if re.search(r'descuento|20%|oferta|findenazo|olímpica|carulla|cumpleaños|aprovecha', comment_lower):
+
+    # Ofertas
+    if re.search(r'descuento|oferta|olímpica', comment_lower):
         return 'Ofertas y Promociones'
-    
-    # Quejas sobre el Producto
-    if re.search(r'yox.*malo|no me dieron.*cartel|perdon', comment_lower):
+
+    # Quejas
+    if re.search(r'yox.*malo|no me dieron', comment_lower):
         return 'Quejas sobre Calidad/Servicio'
-    
-    # Comentarios Personales/Nostalgia
-    if re.search(r'mi niñez|pony malta|cuando yo|antes|mi mamá|frases.*mamá|remedios.*abuela', comment_lower):
+
+    # Nostalgia
+    if re.search(r'mi niñez|antes', comment_lower):
         return 'Referencias Nostálgicas/Culturales'
-    
-    # Spam/Irrelevante
-    if re.search(r'@\w+(?!\s*(alpina|yox))|http|youtube|fuente:|orlando cortés|falcao|james|lapiceros|barbería|vigilancia', comment_lower):
+
+    # Spam / irrelevante
+    if re.search(r'@\w+|http', comment_lower):
         return 'Spam/Contenido Irrelevante'
-    
-    # Interacciones Simples
-    if len(comment_lower.split()) < 5 or re.search(r'^(jaja|jeje|lol|xd|😂|🤣|👍|💪|🍀)+$|^(sí|no|ok|bueno|cierto)$', comment_lower):
-        return 'Interacciones Simples'
-    
-    # Categoría por defecto
+
+    # Por defecto
     return 'Otros'
+
+
 
 def run_report_generation():
     """
@@ -499,5 +518,6 @@ def run_report_generation():
 
 if __name__ == "__main__":
     run_report_generation()
+
 
 
