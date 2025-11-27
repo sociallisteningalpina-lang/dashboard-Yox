@@ -36,12 +36,17 @@ URLS_A_PROCESAR = [
 
     # --- Facebook ---
     "https://www.facebook.com/",
+    "https://www.facebook.com/?feed_demo_ad=120235952707600134&h=AQDOwWt8AwGPM6_3MFA",
+    "https://www.facebook.com/?feed_demo_ad=120235957112840134&h=AQAYU7WqP9_W3LZNJGs",
+    "https://www.facebook.com/?feed_demo_ad=120235956855340134&h=AQCRJ470G54x1-r09k8",
+
     "https://www.facebook.com/100064867445065/posts/1260808236091413/",
     "https://www.facebook.com/100064867445065/posts/1260808222758081/",
     "https://www.facebook.com/100064867445065/posts/1260808139424756/",
     "https://www.facebook.com/100064867445065/posts/1260822012756702/",
     "https://www.facebook.com/100064867445065/posts/1261357606036476/",
     "https://www.facebook.com/100064867445065/posts/1261357616036475/",
+
     "https://www.facebook.com/100064867445065/posts/pfbid023bwGRUTbkVJCm1VteAwQ4o8Z9qw6zAXw4B1XohbBQgxs1q2wygScrorq8oTK7ccYl",
     "https://www.facebook.com/100064867445065/posts/pfbid029hT2ZWY4t8TUmLiLrJGj4Ris4NppCrZpRrzjEigT59GB1QDoFubpUtCD9nuevefWl",
     "https://www.facebook.com/100064867445065/posts/pfbid02BWQCsWUatN4ELYBsTsiGH58AsMR2R7guz8LGT3PHUmpXE2CVtis4pS1FYv6QmaQul",
@@ -51,6 +56,7 @@ URLS_A_PROCESAR = [
     "https://www.facebook.com/100064867445065/posts/pfbid0J6JtaE3Wz43drqg4gG7thMV8QeAa3eKmDuQML3RjU1aYWXaTp6gjy8aTwoasLf35l",
     "https://www.facebook.com/100064867445065/posts/pfbid0MeAdgNbtFKofjnq5RvQ68RcSyXXbRFRTGQ4p8GaBKrnDKtCanp82NqNz8tEhZRoGl",
     "https://www.facebook.com/100064867445065/posts/pfbid0iWSJqTLCzeTBgz7LSHbiDGqYbxC7cbhgfHGDVEt1r5CB8AwgjuV9xxtEwvQaZEGnl",
+
     "https://www.facebook.com/reel/848611304195556/",
     "https://www.facebook.com/reel/1135439792045406/",
     "https://www.facebook.com/1135439792045406/",
@@ -62,12 +68,13 @@ URLS_A_PROCESAR = [
     "https://www.instagram.com/p/DQXX191jDIm/",
     "https://www.instagram.com/p/DQXXzQWDDZV/",
     "https://www.instagram.com/p/DQXX1g-jBg9/",
-    "https://www.instagram.com/p/DQXaV3BjM4E/",
+    "https://www.instagram.com/p/DQaV3BjM4E/",
     "https://www.instagram.com/p/DQMhtk1DGri/",
     "https://www.instagram.com/p/DQ9jdxAjP_x/",
     "https://www.instagram.com/p/DQ9jtyTjD2N/",
     "https://www.instagram.com/p/DQ9jvTNDGNb/",
 ]
+
 
 # INFORMACIÓN DE CAMPAÑA
 CAMPAIGN_INFO = {
@@ -600,5 +607,6 @@ def run_extraction():
 
 if __name__ == "__main__":
     run_extraction()
+
 
 
